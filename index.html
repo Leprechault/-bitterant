@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d2a1f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>BitterAnt Campo</title>
+<style>
+:root{--bg:#f4f1ea;--card:#fff;--ink:#1c1c1c;--mute:#666;--acc:#2f6b3a;--in:#2f6b3a;--bd:#c98a00;--out:#9b2d20;--line:#ddd}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121512;--card:#1d211d;--ink:#eee;--mute:#aaa;--acc:#6cbf7a;--in:#4f9d5b;--bd:#d9a21b;--out:#c8523f;--line:#333}}
+:root[data-theme="dark"]{--bg:#121512;--card:#1d211d;--ink:#eee;--mute:#aaa;--acc:#6cbf7a;--in:#4f9d5b;--bd:#d9a21b;--out:#c8523f;--line:#333}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:0 0 env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:5;background:var(--acc);color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
+header b{font-size:18px}
+nav{display:flex;gap:4px;overflow-x:auto;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+nav button{flex:1 0 auto}
+main{padding:12px 16px;max-width:760px;margin:auto}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+h2{font-size:17px;margin:0 0 8px}
+label{display:block;font-size:14px;color:var(--mute);margin:8px 0 2px}
+input,select,textarea{width:100%;font-size:16px;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.row{display:flex;gap:8px}.row>*{flex:1;min-width:0}
+button{font-size:16px;padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+button.p{background:var(--acc);color:#fff;border-color:var(--acc)}
+button.sel{outline:3px solid var(--acc)}
+button.in{background:var(--in);color:#fff;border:0}button.bd{background:var(--bd);color:#000;border:0}button.out{background:var(--out);color:#fff;border:0}
+.big{font-size:20px;padding:16px}
+.mute{color:var(--mute);font-size:14px}
+.stage{position:relative;background:#000;border-radius:10px;overflow:hidden;touch-action:none}
+.stage video,.stage canvas{display:block;width:100%;height:auto}
+.stage canvas.ov{position:absolute;inset:0;width:100%;height:100%}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{border-bottom:1px solid var(--line);padding:4px;text-align:left}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:13px;color:#fff}
+#toast{position:fixed;left:16px;right:16px;bottom:20px;background:#222;color:#fff;padding:12px;border-radius:8px;display:none;z-index:9}
+</style>
+</head>
+<body>
+<header><b>BitterAnt Campo</b><span id="hdr" class="mute" style="color:#e8f2e8"></span></header>
+<nav>
+<button data-t="cfg">1 Configurar</button><button data-t="cal">2 Calibrar</button><button data-t="pt">3 Ponto</button><button data-t="dat">4 Dados</button>
+</nav>
+<main>
+
+<!-- ============ CONFIG ============ -->
+<section id="cfg">
+<div class="card"><h2>Sessão</h2>
+<div class="row"><div><label>Operador</label><input id="op"></div><div><label>Talhão</label><input id="stand"></div></div>
+<div class="row"><div><label>Espécie de <i>Atta</i></label><input id="sp" placeholder="ex.: A. sexdens"></div><div><label>Solo / cor</label><input id="soil" placeholder="ex.: vermelho"></div></div>
+<label>Fator de área do ninho (NAF, m² ha⁻¹)</label>
+<select id="naf"><option>1</option><option selected>4</option><option>16</option><option>64</option></select>
+<p class="mute" id="nafinfo"></p>
+<label>Fator de forma F</label><input id="F" type="number" step="0.001" value="1.207">
+<label>Altura da câmera em relação ao solo (m)</label><input id="hcam" type="number" step="0.1" value="1.5">
+</div>
+<div class="card"><h2>Como usar</h2>
+<p class="mute">1) Calibre a câmera uma vez por aparelho e modo. 2) Em cada ponto, gire 360° com o calibrador na tela e classifique cada ninho visível como <b>entra</b>, <b>limítrofe</b> ou <b>não entra</b>. 3) Para a classe, congele a imagem e toque nas duas bordas do monte, com a distância medida com trena; repita de outro ângulo, a 90°, para duas visadas. 4) Para validação, registre a distância, a largura transversal à visada e o comprimento e a largura do monte medidos com trena. 5) Exporte o CSV ao final do dia.</p>
+</div>
+</section>
+
+<!-- ============ CALIBRATION ============ -->
+<section id="cal">
+<div class="card"><h2>Calibração da câmera</h2>
+<p class="mute">Coloque um objeto de largura conhecida (ex.: trena esticada 1,00 m ou uma régua) perpendicular à visada, no <b>centro</b> da imagem, a distância conhecida (ex.: 5,00 m, medida com trena do celular ao objeto). Capture, toque nas duas extremidades e salve.</p>
+<div class="row"><div><label>Largura do objeto (m)</label><input id="cW" type="number" step="0.01" value="1.00"></div><div><label>Distância (m)</label><input id="cD" type="number" step="0.01" value="5.00"></div></div>
+<div class="row" style="margin-top:8px"><button class="p" id="cCam">Usar câmera ao vivo</button><button id="cPhoto">Usar foto</button></div>
+<input type="file" id="cFile" accept="image/*" capture="environment" hidden>
+</div>
+<div class="card" id="cStageWrap" style="display:none">
+<div class="stage" id="cStage"><video id="cVid" playsinline muted autoplay></video><canvas id="cCv" style="display:none"></canvas><canvas class="ov" id="cOv"></canvas></div>
+<div class="row" style="margin-top:8px"><button id="cFreeze" class="p">Congelar</button><button id="cReset">Refazer</button><button id="cSave" class="p">Salvar</button></div>
+<p class="mute" id="cMsg">Toque nas duas extremidades do objeto.</p>
+</div>
+<div class="card"><h2>Calibrações salvas</h2><div id="calList" class="kv"></div></div>
+</section>
+
+<!-- ============ POINT ============ -->
+<section id="pt">
+<div class="card">
+<div class="row"><div><label>Ponto</label><input id="ptId" placeholder="P01"></div><div><label>Modo</label><select id="mode"><option value="video">Câmera ao vivo</option><option value="photo">Foto</option></select></div></div>
+<div class="row" style="margin-top:8px"><button class="p" id="ptStart">Iniciar ponto + GPS</button><button id="ptEnd">Encerrar ponto</button></div>
+<p class="mute" id="ptInfo">Nenhum ponto ativo.</p>
+</div>
+<div class="card" id="liveWrap" style="display:none">
+<div class="stage" id="stage"><video id="vid" playsinline muted autoplay></video><canvas id="fcv" style="display:none"></canvas><canvas class="ov" id="ov"></canvas></div>
+<p class="mute" id="gaugeInfo"></p>
+<div class="row"><button id="frz" class="p">Congelar para medir</button><button id="unfrz">Voltar ao vivo</button><button id="photoBtn" style="display:none">Tirar foto</button></div>
+<input type="file" id="pFile" accept="image/*" capture="environment" hidden>
+</div>
+
+<div class="card" id="nestCard" style="display:none"><h2 id="nestTitle">Ninho</h2>
+<label>Leitura do calibrador</label>
+<div class="row"><button class="in big" data-call="in">Entra</button><button class="bd big" data-call="border">Limítrofe</button><button class="out big" data-call="out">Não entra</button></div>
+<label>Medição na imagem (toque nas duas bordas do monte, perpendiculares à visada)</label>
+<div class="row"><button id="v1" class="sel">Visada 1</button><button id="v2">Visada 2 (90°)</button></div>
+<div class="row"><div><label>Distância visada 1 (m)</label><input id="r1" type="number" step="0.01"></div><div><label>Distância visada 2 (m)</label><input id="r2" type="number" step="0.01"></div></div>
+<div class="kv" id="measOut" style="margin-top:6px"></div>
+<label>Validação com trena (opcional)</label>
+<div class="row"><div><label>Distância ao centro (m)</label><input id="tR" type="number" step="0.01"></div><div><label>Largura transversal à visada (m)</label><input id="tWp" type="number" step="0.01"></div></div>
+<div class="row"><div><label>Comprimento L (m)</label><input id="tL" type="number" step="0.01"></div><div><label>Largura W (m)</label><input id="tW" type="number" step="0.01"></div></div>
+<div class="row"><div><label>Nº de montes</label><input id="nMounds" type="number" step="1" value="1"></div><div><label>Visibilidade</label><select id="vis"><option>limpa</option><option>parcial</option><option>oculto</option></select></div></div>
+<label>Observação</label><input id="obs">
+<div class="row" style="margin-top:10px"><button class="p big" id="nestSave">Salvar ninho</button><button id="nestCancel">Descartar</button></div>
+</div>
+<div class="card"><h2>Ninhos neste ponto</h2><table id="ptTable"><thead><tr><th>#</th><th>Leitura</th><th>Â (m²)</th><th>Classe</th><th>Trena</th></tr></thead><tbody></tbody></table>
+<button style="margin-top:8px" id="newNest" class="p">+ Novo ninho</button></div>
+</section>
+
+<!-- ============ DATA ============ -->
+<section id="dat">
+<div class="card"><h2>Resumo</h2><div class="kv" id="sumKv"></div></div>
+<div class="card"><h2>Exportar</h2>
+<p class="mute">O arquivo CSV (separador ponto e vírgula, decimal com ponto) é o que deve ser trazido para a análise (script R 12_field_smartphone.R).</p>
+<div class="row"><button class="p" id="exp">Baixar CSV</button><button id="share">Compartilhar</button></div>
+<button id="clr" style="margin-top:8px;width:100%;color:var(--out)">Apagar todos os dados do aparelho</button>
+</div>
+<div class="card"><h2>Registros</h2><div style="overflow-x:auto"><table id="allTable"></table></div></div>
+</section>
+</main>
+<div id="toast"></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const VERSION = '1.0';
+const CLASSES = [['I',1],['II',3],['III',9],['IV',25],['V',Infinity]];
+const cls = a => (a == null || !isFinite(a)) ? '' : CLASSES.find(c => a < c[1])[0];
+const toast = m => { const t = $('toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = 'none', 2600); };
+const num = id => { const v = parseFloat(($(id).value || '').replace(',', '.')); return isFinite(v) ? v : null; };
+const r3 = x => x == null ? '' : Math.round(x * 1000) / 1000;
+
+// ---------------- storage (per-device, wrapped) ----------------
+const KEY = 'bitterant_v1';
+let S = { cfg: {}, cal: {}, recs: [], seq: 0 };
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) S = Object.assign(S, s); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Não foi possível salvar no aparelho: exporte o CSV.'); } };
+
+// ---------------- tabs ----------------
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => tab(b.dataset.t));
+function tab(t) { document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === t)); document.querySelectorAll('nav button').forEach(b => b.classList.toggle('sel', b.dataset.t === t)); if (t === 'dat') renderData(); if (t === 'cal') renderCal(); if (t !== 'pt' && t !== 'cal') stopCams(); }
+
+// ---------------- config ----------------
+['op','stand','sp','soil','naf','F','hcam'].forEach(id => { if (S.cfg[id] != null) $(id).value = S.cfg[id]; $(id).onchange = () => { S.cfg[id] = $(id).value; save(); nafInfo(); }; });
+const NAF = () => num('naf') || 4;
+const alpha = () => 2 * Math.asin(Math.sqrt(NAF() / 10000));   // rad
+const kRatio = () => 2 * Math.sin(alpha() / 2);
+function nafInfo() {
+  const a = alpha(), k = kRatio();
+  $('nafinfo').innerHTML = `Ângulo crítico α = ${(a * 180 / Math.PI).toFixed(3)}° · razão w/r ≥ ${k.toFixed(4)} · abertura de calibrador físico a 50 cm: ${(1000 * Math.tan(a / 2)).toFixed(1)} mm · distância-limite R = ${(1 / k).toFixed(1)} × largura.`;
+  $('hdr').textContent = `NAF ${NAF()} · ${S.cfg.stand || 'talhão?'}`;
+}
+nafInfo();
+
+// ---------------- camera helpers ----------------
+let streams = [];
+async function startCam(video) {
+  stopCams();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast('Câmera ao vivo indisponível aqui: use o modo Foto.'); return false; }
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    streams.push(s); video.srcObject = s; await video.play().catch(() => {});
+    try { const tr = s.getVideoTracks()[0]; const c = tr.getCapabilities && tr.getCapabilities(); if (c && c.zoom) tr.applyConstraints({ advanced: [{ zoom: c.zoom.min }] }); } catch (e) {}
+    return true;
+  } catch (e) { toast('Sem acesso à câmera (' + e.name + '). Use o modo Foto.'); return false; }
+}
+function stopCams() { streams.forEach(s => s.getTracks().forEach(t => t.stop())); streams = []; }
+function grab(video, cv) { cv.width = video.videoWidth; cv.height = video.videoHeight; cv.getContext('2d').drawImage(video, 0, 0); }
+function loadFile(file, cv) {
+  return new Promise((res, rej) => { const im = new Image(); im.onload = () => { cv.width = im.naturalWidth; cv.height = im.naturalHeight; cv.getContext('2d').drawImage(im, 0, 0); URL.revokeObjectURL(im.src); res(); }; im.onerror = rej; im.src = URL.createObjectURL(file); });
+}
+// focal length is stored normalised by the image long side, so it holds in portrait and landscape
+const fpx = (mode, w, h) => S.cal[mode] ? S.cal[mode].fn * Math.max(w, h) : null;
+// angle (rad) between two image x coordinates, principal point at the centre
+const angBetween = (x1, x2, w, f) => Math.abs(Math.atan((x2 - w / 2) / f) - Math.atan((x1 - w / 2) / f));
+
+// tap overlay: maps a tap to image pixel coordinates
+function tapper(ov, srcW, srcH, onTap) {
+  ov.onpointerdown = ev => { const r = ov.getBoundingClientRect(); onTap((ev.clientX - r.left) / r.width * srcW(), (ev.clientY - r.top) / r.height * srcH()); };
+}
+function drawMarks(ov, w, h, pts, extra) {
+  ov.width = w; ov.height = h; const g = ov.getContext('2d'); g.clearRect(0, 0, w, h);
+  const lw = Math.max(2, w / 400);
+  g.lineWidth = lw; g.strokeStyle = '#ffd400'; g.fillStyle = '#ffd400';
+  pts.forEach(p => { g.beginPath(); g.moveTo(p[0], 0); g.lineTo(p[0], h); g.stroke(); g.beginPath(); g.arc(p[0], p[1], lw * 4, 0, 7); g.fill(); });
+  if (extra) extra(g, lw);
+}
+
+// ---------------- calibration ----------------
+let cal = { mode: null, pts: [], frozen: false };
+$('cCam').onclick = async () => { cal = { mode: 'video', pts: [], frozen: false }; $('cStageWrap').style.display = ''; $('cVid').style.display = ''; $('cCv').style.display = 'none'; $('cFreeze').style.display = ''; await startCam($('cVid')); calDraw(); };
+$('cPhoto').onclick = () => $('cFile').click();
+$('cFile').onchange = async e => { if (!e.target.files[0]) return; stopCams(); cal = { mode: 'photo', pts: [], frozen: true }; $('cStageWrap').style.display = ''; await loadFile(e.target.files[0], $('cCv')); $('cVid').style.display = 'none'; $('cCv').style.display = ''; $('cFreeze').style.display = 'none'; calDraw(); e.target.value = ''; };
+$('cFreeze').onclick = () => { const v = $('cVid'); if (!v.videoWidth) return; grab(v, $('cCv')); stopCams(); v.style.display = 'none'; $('cCv').style.display = ''; cal.frozen = true; calDraw(); };
+$('cReset').onclick = () => { cal.pts = []; calDraw(); };
+tapper($('cOv'), () => $('cCv').width, () => $('cCv').height, (x, y) => { if (!cal.frozen) { toast('Congele a imagem primeiro.'); return; } if (cal.pts.length >= 2) cal.pts = []; cal.pts.push([x, y]); calDraw(); });
+function calDraw() {
+  const cv = $('cCv'); if (!cal.frozen) { $('cMsg').textContent = 'Enquadre o objeto no centro e toque em Congelar.'; return; }
+  drawMarks($('cOv'), cv.width, cv.height, cal.pts, g => { g.strokeStyle = 'rgba(255,255,255,.6)'; g.setLineDash([10, 10]); g.beginPath(); g.moveTo(cv.width / 2, 0); g.lineTo(cv.width / 2, cv.height); g.stroke(); g.setLineDash([]); });
+  if (cal.pts.length === 2) {
+    const W = num('cW'), D = num('cD'), dx = Math.abs(cal.pts[1][0] - cal.pts[0][0]);
+    const th = 2 * Math.atan(W / (2 * D)); const f = dx / (2 * Math.tan(th / 2));
+    const hfov = 2 * Math.atan(Math.max(cv.width, cv.height) / 2 / f) * 180 / Math.PI;
+    cal.result = { fn: f / Math.max(cv.width, cv.height), f_px: f, img_w: cv.width, img_h: cv.height, W, D, dx, hfov_long_deg: hfov, when: new Date().toISOString() };
+    $('cMsg').textContent = `${dx.toFixed(0)} px → distância focal ${f.toFixed(0)} px; campo de visão no lado maior ${hfov.toFixed(1)}°. Toque em Salvar.`;
+  } else $('cMsg').textContent = 'Toque nas duas extremidades do objeto.';
+}
+$('cSave').onclick = () => { if (!cal.result) { toast('Marque as duas extremidades.'); return; } S.cal[cal.mode] = cal.result; save(); toast('Calibração (' + cal.mode + ') salva.'); renderCal(); };
+function renderCal() {
+  const h = []; for (const m of ['video', 'photo']) { const c = S.cal[m]; h.push(`<b>${m === 'video' ? 'Câmera ao vivo' : 'Foto'}</b><span>${c ? `f/lado maior = ${c.fn.toFixed(4)} · FOV ${c.hfov_long_deg.toFixed(1)}° · ${c.img_w}×${c.img_h} · ${c.when.slice(0, 10)}` : 'não calibrada'}</span>`); }
+  $('calList').innerHTML = h.join('');
+}
+
+// ---------------- point & nests ----------------
+let P = null;             // active point
+let N = null;             // nest being edited
+let frozen = false, view = 1;
+function gps() {
+  return new Promise(res => {
+    if (!navigator.geolocation) return res({});
+    navigator.geolocation.getCurrentPosition(p => res({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }), () => res({}), { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  });
+}
+$('ptStart').onclick = async () => {
+  if (P && !confirm('Já há um ponto ativo. Encerrar e iniciar outro?')) return;
+  const id = $('ptId').value.trim() || ('P' + String(Object.keys(pointsOf()).length + 1).padStart(2, '0'));
+  $('ptId').value = id;
+  const mode = $('mode').value;
+  if (!S.cal[mode]) toast('Atenção: modo ' + mode + ' sem calibração; a medição da largura ficará vazia.');
+  P = { point: id, mode, t0: new Date().toISOString(), naf: NAF() };
+  $('ptInfo').textContent = 'Obtendo GPS...';
+  Object.assign(P, await gps());
+  $('ptInfo').textContent = `Ponto ${id} · ${P.lat ? P.lat.toFixed(6) + ', ' + P.lon.toFixed(6) + ' (±' + Math.round(P.acc) + ' m)' : 'sem GPS'} · NAF ${P.naf}`;
+  $('liveWrap').style.display = '';
+  $('photoBtn').style.display = mode === 'photo' ? '' : 'none';
+  $('frz').style.display = mode === 'video' ? '' : 'none'; $('unfrz').style.display = mode === 'video' ? '' : 'none';
+  if (mode === 'video') { await startCam($('vid')); live(); } else { $('vid').style.display = 'none'; }
+  renderPt(); newNest();
+};
+$('ptEnd').onclick = () => {
+  if (!P) return;
+  if (N && N.call) { if (confirm('Salvar o ninho em edição antes de encerrar?')) saveNest(); }
+  const ns = S.recs.filter(r => r.type === 'nest' && r.point === P.point && r.session_t0 === P.t0);
+  S.recs.push(Object.assign(baseRec(), { type: 'point', n_in: ns.filter(r => r.gauge_call === 'in').length, n_border: ns.filter(r => r.gauge_call === 'border').length, n_out: ns.filter(r => r.gauge_call === 'out').length, t_end: new Date().toISOString() }));
+  save(); stopCams(); toast('Ponto ' + P.point + ' encerrado.'); P = null; N = null;
+  $('liveWrap').style.display = 'none'; $('nestCard').style.display = 'none'; $('ptInfo').textContent = 'Nenhum ponto ativo.';
+  const m = $('ptId').value.match(/^(.*?)(\d+)$/); if (m) $('ptId').value = m[1] + String(+m[2] + 1).padStart(m[2].length, '0');
+  renderPt();
+};
+const pointsOf = () => { const o = {}; S.recs.forEach(r => o[r.point + r.session_t0] = 1); return o; };
+function baseRec() {
+  return { app_version: VERSION, operator: S.cfg.op || '', stand: S.cfg.stand || '', species: S.cfg.sp || '', soil: S.cfg.soil || '', point: P.point, session_t0: P.t0,
+    lat: P.lat ?? '', lon: P.lon ?? '', gps_acc_m: P.acc ?? '', NAF: P.naf, F: num('F') || 1.207, cam_h_m: num('hcam') ?? '', mode: P.mode,
+    f_norm: S.cal[P.mode] ? r3(S.cal[P.mode].fn * 1e4) / 1e4 : '', cam_hfov_deg: S.cal[P.mode] ? r3(S.cal[P.mode].hfov_long_deg) : '' };
+}
+
+// live gauge overlay
+function live() {
+  const v = $('vid'), ov = $('ov');
+  if (!P || P.mode !== 'video' || frozen || !streams.length) return;
+  if (v.videoWidth) {
+    const w = v.videoWidth, h = v.videoHeight; const f = fpx('video', w, h);
+    ov.width = w; ov.height = h; const g = ov.getContext('2d'); g.clearRect(0, 0, w, h);
+    const lw = Math.max(2, w / 300);
+    if (f) {
+      const gw = 2 * f * Math.tan(alpha() / 2); const cx = w / 2;
+      g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(cx - gw / 2 - lw * 6, 0, gw + lw * 12, h);
+      g.strokeStyle = '#ffd400'; g.lineWidth = lw;
+      for (const x of [cx - gw / 2, cx + gw / 2]) { g.beginPath(); g.moveTo(x, h * .15); g.lineTo(x, h * .85); g.stroke(); }
+      g.beginPath(); g.moveTo(cx - gw / 2, h * .5); g.lineTo(cx + gw / 2, h * .5); g.stroke();
+      $('gaugeInfo').textContent = `Calibrador: ${gw.toFixed(0)} px na imagem (α = ${(alpha() * 180 / Math.PI).toFixed(3)}°). O ninho entra se o monte for mais largo que a abertura amarela.`;
+    } else $('gaugeInfo').textContent = 'Modo câmera ao vivo sem calibração: calibre na aba 2.';
+  }
+  requestAnimationFrame(live);
+}
+$('frz').onclick = () => { const v = $('vid'); if (!v.videoWidth) return; grab(v, $('fcv')); frozen = true; v.style.display = 'none'; $('fcv').style.display = ''; drawMeas(); };
+$('unfrz').onclick = () => { frozen = false; $('vid').style.display = ''; $('fcv').style.display = 'none'; live(); };
+$('photoBtn').onclick = () => $('pFile').click();
+$('pFile').onchange = async e => { if (!e.target.files[0]) return; await loadFile(e.target.files[0], $('fcv')); $('fcv').style.display = ''; frozen = true; drawMeas(); e.target.value = ''; };
+
+function newNest() {
+  if (!P) { toast('Inicie um ponto.'); return; }
+  S.seq++; save();
+  N = { nest: S.seq, call: null, v: { 1: null, 2: null } }; view = 1;
+  ['r1', 'r2', 'tR', 'tWp', 'tL', 'tW', 'obs'].forEach(id => $(id).value = ''); $('nMounds').value = 1; $('vis').value = 'limpa';
+  document.querySelectorAll('[data-call]').forEach(b => b.classList.remove('sel'));
+  $('v1').classList.add('sel'); $('v2').classList.remove('sel');
+  $('nestTitle').textContent = `Ninho ${N.nest} (ponto ${P.point})`; $('nestCard').style.display = '';
+  if (P.mode === 'video' && frozen) $('unfrz').onclick();
+  measOut();
+}
+$('newNest').onclick = () => { if (N && N.call && !confirm('Descartar o ninho em edição?')) return; newNest(); };
+document.querySelectorAll('[data-call]').forEach(b => b.onclick = () => { if (!N) return; N.call = b.dataset.call; document.querySelectorAll('[data-call]').forEach(x => x.classList.toggle('sel', x === b)); });
+$('v1').onclick = () => { view = 1; $('v1').classList.add('sel'); $('v2').classList.remove('sel'); drawMeas(); };
+$('v2').onclick = () => { view = 2; $('v2').classList.add('sel'); $('v1').classList.remove('sel'); toast('Desloque-se 90° em torno do ninho e capture de novo.'); if (P && P.mode === 'video' && frozen) $('unfrz').onclick(); };
+tapper($('ov'), () => $('fcv').width, () => $('fcv').height, (x, y) => {
+  if (!N || !frozen) { if (N) toast('Congele a imagem para medir.'); return; }
+  const cv = $('fcv'); let m = N.v[view];
+  if (!m || m.pts.length >= 2) m = N.v[view] = { pts: [], w: cv.width, h: cv.height };
+  m.pts.push([x, y]); drawMeas(); measOut();
+});
+function drawMeas() {
+  const cv = $('fcv'); if (!frozen || !N) return; const m = N.v[view];
+  drawMarks($('ov'), cv.width, cv.height, m && m.w === cv.width ? m.pts : []);
+}
+['r1', 'r2', 'tR', 'tWp', 'tL', 'tW'].forEach(id => $(id).oninput = () => measOut());
+function viewWidth(i) {
+  const m = N && N.v[i]; const r = num('r' + i);
+  if (!m || m.pts.length < 2) return {};
+  const f = fpx(P.mode, m.w, m.h); if (!f) return { px: Math.abs(m.pts[1][0] - m.pts[0][0]) };
+  const th = angBetween(m.pts[0][0], m.pts[1][0], m.w, f);
+  const hc = num('hcam') || 0; const rs = r != null ? Math.sqrt(r * r + hc * hc) : null; // slant range to the mound
+  return { px: Math.abs(m.pts[1][0] - m.pts[0][0]), th, w: rs != null ? 2 * rs * Math.tan(th / 2) : null, inc: th >= alpha() };
+}
+function estimates() {
+  const a = viewWidth(1), b = viewWidth(2), F = num('F') || 1.207;
+  let A = null, nv = 0;
+  if (a.w != null && b.w != null) { A = F * Math.PI * (a.w ** 2 + b.w ** 2) / 8; nv = 2; }
+  else if (a.w != null) { A = F * Math.PI / 4 * a.w ** 2; nv = 1; }
+  const L = num('tL'), W = num('tW'), tR = num('tR'), tWp = num('tWp');
+  const At = L != null && W != null ? L * W : null;
+  const tin = tR != null && tWp != null ? (tWp / tR >= kRatio() ? 'in' : 'out') : '';
+  return { a, b, A, nv, At, tin };
+}
+function measOut() {
+  if (!N) return; const e = estimates(); const fmt = v => v == null ? '–' : v.toFixed(2);
+  const row = (i, v) => v.th != null ? `<b>Visada ${i}</b><span>${v.px.toFixed(0)} px · ${(v.th * 180 / Math.PI).toFixed(2)}° ${v.inc ? '(entra pelo ângulo)' : '(não entra pelo ângulo)'} · w = ${fmt(v.w)} m</span>` : (v.px != null ? `<b>Visada ${i}</b><span>${v.px.toFixed(0)} px (sem calibração)</span>` : '');
+  $('measOut').innerHTML = row(1, e.a) + row(2, e.b) +
+    `<b>Â (${e.nv || 0} visada${e.nv === 2 ? 's' : ''})</b><span>${fmt(e.A)} m² · classe ${cls(e.A) || '–'}</span>` +
+    (e.At != null ? `<b>Trena L×W</b><span>${e.At.toFixed(2)} m² · classe ${cls(e.At)}</span>` : '') +
+    (e.tin ? `<b>Regra com trena</b><span>${e.tin === 'in' ? 'entra' : 'não entra'} (R = ${(num('tWp') / kRatio()).toFixed(1)} m)</span>` : '');
+}
+function saveNest() {
+  if (!N || !P) return;
+  if (!N.call) { toast('Escolha a leitura do calibrador.'); return false; }
+  const e = estimates(); const deg = x => x == null ? '' : r3(x * 180 / Math.PI);
+  const px = (i, k) => N.v[i] && N.v[i].pts.length === 2 ? r3(N.v[i].pts[k][0]) : '';
+  S.recs.push(Object.assign(baseRec(), {
+    type: 'nest', nest: N.nest, t: new Date().toISOString(), gauge_call: N.call,
+    v1_px_x1: px(1, 0), v1_px_x2: px(1, 1), v1_img_w: N.v[1] ? N.v[1].w : '', v1_img_h: N.v[1] ? N.v[1].h : '', v1_theta_deg: deg(e.a.th), v1_r_m: num('r1') ?? '', v1_w_m: r3(e.a.w),
+    v2_px_x1: px(2, 0), v2_px_x2: px(2, 1), v2_img_w: N.v[2] ? N.v[2].w : '', v2_img_h: N.v[2] ? N.v[2].h : '', v2_theta_deg: deg(e.b.th), v2_r_m: num('r2') ?? '', v2_w_m: r3(e.b.w),
+    n_views: e.nv, A_hat_m2: r3(e.A), class_hat: cls(e.A),
+    tape_r_m: num('tR') ?? '', tape_wperp_m: num('tWp') ?? '', tape_L_m: num('tL') ?? '', tape_W_m: num('tW') ?? '', A_tape_m2: r3(e.At), class_tape: cls(e.At), tape_call: e.tin,
+    n_mounds: num('nMounds') ?? '', visibility: $('vis').value, notes: $('obs').value.replace(/[;\n\r]/g, ',')
+  }));
+  save(); toast('Ninho ' + N.nest + ' salvo.'); renderPt(); newNest(); return true;
+}
+$('nestSave').onclick = saveNest;
+$('nestCancel').onclick = () => { if (confirm('Descartar este ninho?')) newNest(); };
+function renderPt() {
+  const tb = $('ptTable').querySelector('tbody');
+  const ns = P ? S.recs.filter(r => r.type === 'nest' && r.point === P.point && r.session_t0 === P.t0) : [];
+  const col = { in: 'var(--in)', border: 'var(--bd)', out: 'var(--out)' }, lab = { in: 'entra', border: 'limítrofe', out: 'não entra' };
+  tb.innerHTML = ns.map(r => `<tr><td>${r.nest}</td><td><span class="pill" style="background:${col[r.gauge_call]}">${lab[r.gauge_call]}</span></td><td>${r.A_hat_m2 === '' ? '–' : r.A_hat_m2}</td><td>${r.class_hat || '–'}</td><td>${r.A_tape_m2 === '' ? '–' : r.A_tape_m2 + ' (' + r.class_tape + ')'}</td></tr>`).join('');
+}
+
+// ---------------- data ----------------
+const COLS = ['type','app_version','operator','stand','species','soil','point','session_t0','t','t_end','lat','lon','gps_acc_m','NAF','F','cam_h_m','mode','f_norm','cam_hfov_deg','nest','gauge_call','v1_px_x1','v1_px_x2','v1_img_w','v1_img_h','v1_theta_deg','v1_r_m','v1_w_m','v2_px_x1','v2_px_x2','v2_img_w','v2_img_h','v2_theta_deg','v2_r_m','v2_w_m','n_views','A_hat_m2','class_hat','tape_r_m','tape_wperp_m','tape_L_m','tape_W_m','A_tape_m2','class_tape','tape_call','n_mounds','visibility','notes','n_in','n_border','n_out'];
+const csv = () => [COLS.join(';')].concat(S.recs.map(r => COLS.map(c => r[c] ?? '').join(';'))).join('\n');
+const fname = () => `bitterant_${(S.cfg.stand || 'talhao').replace(/\W+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+$('exp').onclick = () => { const b = new Blob(['﻿' + csv()], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = fname(); document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); };
+$('share').onclick = async () => {
+  try { const f = new File([csv()], fname(), { type: 'text/csv' }); if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f], title: 'BitterAnt' }); else toast('Compartilhamento indisponível: use Baixar CSV.'); } catch (e) {}
+};
+$('clr').onclick = () => { if (confirm('Apagar TODOS os registros deste aparelho? Exporte antes.') && confirm('Confirma?')) { S.recs = []; S.seq = 0; save(); renderData(); } };
+function renderData() {
+  const ns = S.recs.filter(r => r.type === 'nest'), pts = S.recs.filter(r => r.type === 'point');
+  const val = ns.filter(r => r.tape_call), agree = val.filter(r => (r.gauge_call === 'in') === (r.tape_call === 'in')).length;
+  const cc = ns.filter(r => r.class_hat && r.class_tape), cagree = cc.filter(r => r.class_hat === r.class_tape).length;
+  $('sumKv').innerHTML = `<b>Pontos encerrados</b><span>${pts.length}</span><b>Ninhos</b><span>${ns.length}</span>` +
+    `<b>Entra / limítrofe / não</b><span>${ns.filter(r => r.gauge_call === 'in').length} / ${ns.filter(r => r.gauge_call === 'border').length} / ${ns.filter(r => r.gauge_call === 'out').length}</span>` +
+    `<b>Calibrador × trena</b><span>${val.length ? agree + ' de ' + val.length + ' concordantes' : '–'}</span>` +
+    `<b>Classe imagem × trena</b><span>${cc.length ? cagree + ' de ' + cc.length + ' iguais' : '–'}</span>`;
+  const show = ['type', 'point', 'nest', 'gauge_call', 'n_views', 'A_hat_m2', 'class_hat', 'A_tape_m2', 'class_tape', 'tape_call'];
+  $('allTable').innerHTML = '<tr>' + show.map(c => `<th>${c}</th>`).join('') + '</tr>' + S.recs.slice(-200).reverse().map(r => '<tr>' + show.map(c => `<td>${r[c] ?? ''}</td>`).join('') + '</tr>').join('');
+}
+tab('cfg'); renderCal();
+</script>
+</body>
+</html>
